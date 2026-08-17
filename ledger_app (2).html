@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B2545; --maize:#E3B23C; --paper:#EEEBE2; --paper-raised:#F7F5EE;
+    --slate:#5B6472; --complete:#3F6B4E; --complete-bg:#E4EDE6;
+    --gap:#9A3B2E; --gap-bg:#F3E4DF; --line:#DAD5C6; --radius:10px;
+    --shadow:0 1px 2px rgba(11,37,69,0.06), 0 4px 14px rgba(11,37,69,0.05);
+    --bg: var(--paper); --blur: 0px;
+  }
+  body[data-theme="night"]{
+    --ink:#EDE9DD; --maize:#E8C065; --paper:#101826; --paper-raised:#161F30;
+    --slate:#9BA5B4; --complete:#79B893; --complete-bg:#173226;
+    --gap:#D98572; --gap-bg:#331B18; --line:#26324A;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 4px 18px rgba(0,0,0,0.35);
+    --bg: var(--paper);
+  }
+  body[data-theme="aurora"]{
+    --ink:#28324A; --maize:#C98A2E; --paper-raised:rgba(255,255,255,0.62);
+    --slate:#5C6B7A; --complete:#2F6E4F; --complete-bg:rgba(228,237,230,0.75);
+    --gap:#9A3B2E; --gap-bg:rgba(243,228,223,0.75); --line:rgba(255,255,255,0.5);
+    --shadow:0 8px 30px rgba(40,50,74,0.12); --blur:16px;
+    --bg: radial-gradient(circle at 15% 20%, #F3DCC5 0%, transparent 45%),
+          radial-gradient(circle at 85% 15%, #BFD7EA 0%, transparent 50%),
+          radial-gradient(circle at 75% 80%, #F0CE7C 0%, transparent 55%),
+          radial-gradient(circle at 20% 85%, #D8E4D6 0%, transparent 50%),
+          #F6F1E7;
+  }
+  body[data-theme="dusk"]{
+    --ink:#F0E9F6; --maize:#E8C065; --paper-raised:rgba(28,18,48,0.55);
+    --slate:#B9AECB; --complete:#8FCBA6; --complete-bg:rgba(30,60,48,0.6);
+    --gap:#E39A85; --gap-bg:rgba(60,26,22,0.6); --line:rgba(255,255,255,0.14);
+    --shadow:0 8px 30px rgba(0,0,0,0.4); --blur:16px;
+    --bg: radial-gradient(circle at 20% 15%, #7A3B69 0%, transparent 50%),
+          radial-gradient(circle at 85% 25%, #3A1F5D 0%, transparent 55%),
+          radial-gradient(circle at 70% 85%, #4B2A5E 0%, transparent 50%),
+          radial-gradient(circle at 10% 80%, #24163F 0%, transparent 55%),
+          #180F2B;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); background-attachment:fixed;
+    color:var(--ink); font-family:'Inter',sans-serif; transition:background .3s ease, color .3s ease;
+  }
+  ::selection{background:var(--maize); color:#fff;}
+  button{font-family:inherit;}
+
+  /* ---------- SHELL ---------- */
+  .app{display:grid; grid-template-columns:240px 1fr; min-height:100vh;}
+  .app.survey-mode{grid-template-columns:1fr; align-items:center; justify-items:center; padding:32px 18px;}
+  @media (max-width:800px){ .app{grid-template-columns:1fr;} .sidebar{position:sticky; top:0; z-index:20;} }
+
+  .sidebar{
+    background:var(--ink); color:var(--paper, #EEEBE2); padding:24px 18px;
+    display:flex; flex-direction:column; gap:24px;
+  }
+  body[data-theme="aurora"] .sidebar, body[data-theme="dusk"] .sidebar{
+    background:rgba(11,25,40,0.35); backdrop-filter:blur(20px); color:#fff;
+  }
+  body[data-theme="night"] .sidebar{ background:#0A0F18; }
+  .brand{ font-family:'Source Serif 4',serif; font-weight:700; font-size:22px; }
+  .brand span{ color:var(--maize); }
+  nav{display:flex; flex-direction:column; gap:2px;}
+  .nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:14px; color:rgba(255,255,255,0.68); cursor:pointer; }
+  .nav-item:hover{ background:rgba(255,255,255,0.08); }
+  .nav-item.active{ background:rgba(227,178,60,0.16); color:var(--maize); font-weight:600; }
+  .sidebar-foot{ margin-top:auto; display:flex; flex-direction:column; gap:12px; }
+  .theme-label{ font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:rgba(255,255,255,0.5); }
+  .swatches{ display:flex; gap:6px; margin-top:6px; }
+  .swatch{ width:20px; height:20px; border-radius:50%; border:2px solid rgba(255,255,255,0.25); cursor:pointer; }
+  .swatch.active{ border-color:var(--maize); }
+  .sw-ledger{ background:linear-gradient(135deg,#EEEBE2 50%, #E3B23C 50%); }
+  .sw-night{ background:linear-gradient(135deg,#101826 50%, #E8C065 50%); }
+  .sw-aurora{ background:conic-gradient(#F3DCC5, #BFD7EA, #F0CE7C, #D8E4D6); }
+  .sw-dusk{ background:conic-gradient(#7A3B69, #3A1F5D, #4B2A5E, #24163F); }
+  .edit-link{ font-size:12px; color:rgba(255,255,255,0.6); cursor:pointer; text-decoration:underline; }
+
+  main{ padding:32px 40px 80px; max-width:980px; }
+  @media (max-width:640px){ main{padding:20px 18px 60px;} }
+
+  .page-head{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; margin-bottom:28px; border-bottom:1px solid var(--line); padding-bottom:20px; }
+  h1{ font-family:'Source Serif 4',serif; font-weight:700; font-size:32px; margin:0 0 4px; }
+  .page-sub{ color:var(--slate); font-size:14px; margin:0; }
+  .stat-pair{ display:flex; gap:22px; }
+  .stat{ text-align:right; }
+  .stat-num{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:22px; display:block; }
+  .gpa-input{ background:none; border:none; padding:0; text-align:right; color:var(--ink); -moz-appearance:textfield; }
+  .stat-label{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--slate); }
+
+  section{ margin-bottom:36px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
+  h2{ font-family:'Source Serif 4',serif; font-size:19px; font-weight:600; margin:0; }
+  .section-note{ font-size:12.5px; color:var(--slate); margin:0; }
+
+  .panel{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); backdrop-filter:blur(var(--blur)); }
+  .ledger-row{ display:grid; grid-template-columns:1fr auto auto; gap:16px; align-items:center; padding:12px 18px; border-bottom:1px solid var(--line); }
+  .ledger-row:last-child{ border-bottom:none; }
+  .req-name{ font-size:14px; font-weight:500; }
+  .req-major{ color:var(--slate); font-size:12px; display:block; }
+  .tally{ display:flex; gap:3px; }
+  .tick{ width:5px; height:16px; border-radius:2px; background:var(--line); }
+  .tick.filled{ background:var(--complete); }
+  .req-count{ font-family:'IBM Plex Mono',monospace; font-size:12px; min-width:50px; text-align:right; color:var(--slate); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr;} }
+  .mini-card{ padding:14px 16px; }
+  .mini-card .k{ font-size:11.5px; color:var(--slate); text-transform:uppercase; letter-spacing:0.6px; }
+  .mini-card .v{ font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:600; margin-top:4px; }
+
+  .class-card{ padding:14px 16px; }
+  .class-top{ display:flex; justify-content:space-between; }
+  .class-code{ font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; background:var(--paper); border:1px solid var(--line); padding:2px 7px; border-radius:5px; }
+  .class-credits{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--slate); }
+  .empty{ font-size:13px; color:var(--slate); padding:16px; text-align:center; }
+  .chip{ display:inline-block; font-size:12px; background:var(--paper); border:1px solid var(--line); padding:5px 11px; border-radius:20px; margin:0 6px 6px 0; }
+
+  .disclaimer{ display:flex; gap:10px; background:var(--gap-bg); border:1px solid var(--gap); border-radius:var(--radius); padding:12px 16px; margin-bottom:16px; font-size:12.5px; line-height:1.5; }
+  .disclaimer b{ color:var(--gap); }
+
+  .todo-preview{ display:flex; flex-direction:column; gap:8px; }
+  .todo-item{ display:flex; align-items:center; gap:10px; background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; padding:10px 14px; font-size:13.5px; backdrop-filter:blur(var(--blur)); }
+  .todo-check{ width:18px; height:18px; border-radius:5px; border:1.5px solid var(--slate); flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; }
+  .todo-check.checked{ background:var(--complete); border-color:var(--complete); }
+
+  /* ---------- SURVEY ---------- */
+  .card{ width:100%; max-width:560px; padding:36px 36px 28px; }
+  .progress{ display:flex; gap:5px; margin-bottom:26px; }
+  .p-tick{ height:6px; flex:1; border-radius:3px; background:var(--line); }
+  .p-tick.filled{ background:var(--complete); }
+  .p-tick.current{ background:var(--maize); }
+  .step{ display:none; } .step.active{ display:block; }
+  .step-eyebrow{ font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--slate); margin-bottom:6px; }
+  .step-sub{ font-size:13.5px; color:var(--slate); margin:0 0 20px; line-height:1.5; }
+  label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
+  .field{ margin-bottom:14px; }
+  input[type=text], input[type=number], select{ width:100%; font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .repeat-row{ display:grid; grid-template-columns:1fr 70px 28px; gap:8px; margin-bottom:8px; }
+  .repeat-row.single{ grid-template-columns:1fr 28px; }
+  .repeat-row input{ padding:8px 10px; font-size:13.5px; }
+  .remove-btn{ width:28px; height:28px; border-radius:6px; border:1px solid var(--line); background:var(--paper); color:var(--gap); cursor:pointer; }
+  .add-btn{ font-size:13px; font-weight:600; background:none; border:1px dashed var(--slate); border-radius:8px; padding:8px 12px; cursor:pointer; width:100%; margin-bottom:6px; color:var(--ink); }
+  .nav-row{ display:flex; justify-content:space-between; margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
+  .btn{ font-size:13.5px; font-weight:600; padding:10px 18px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink); cursor:pointer; }
+  .btn-primary{ background:var(--ink); color:var(--paper-raised, #fff); border-color:var(--ink); }
+  .btn-ghost{ background:none; border-color:transparent; color:var(--slate); }
+  .finish-icon{ width:52px; height:52px; border-radius:50%; background:var(--complete-bg); color:var(--complete); display:flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:16px; }
+
+  [tabindex]:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{ outline:2px solid var(--maize); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body data-theme="ledger">
+
+<div class="app" id="app">
+  <!-- filled by JS -->
+</div>
+
+<script>
+const THEMES = ['ledger','night','aurora','dusk'];
+let profile = null;
+let step = 1;
+const totalSteps = 7;
+let saveOk = true;
+let currentPage = 'classes';
+let chatHistory = [];
+let aiUsage = { used: 7, limit: 20 };
+let transactions = [];
+let goals = [];
+const QUICK_QUESTIONS = [
+  "What should I take next semester?",
+  "Am I on track for my major?",
+  "Suggest clubs related to my major"
+];
+let draft = { name:'', year:'2028', major:'', classes:[], pastCredit:[], balance:'', goal:'', activities:[], advisorName:'', advisorContact:'' };
+
+async function loadProfile(){
+  try{
+    const res = await window.storage.get('profile', false);
+    if(res && res.value){
+      profile = JSON.parse(res.value);
+      transactions = profile.transactions || [];
+      goals = profile.goals || [];
+    }
+  }catch(e){ profile = null; }
+  render();
+}
+
+async function saveProfile(p){
+  try{
+    p.transactions = transactions;
+    p.goals = goals;
+    await window.storage.set('profile', JSON.stringify(p), false);
+    saveOk = true;
+  }catch(e){
+    console.warn('Profile could not be saved to persistent storage; continuing in-memory only.', e);
+    saveOk = false;
+  }
+}
+
+function setTheme(name){
+  document.body.setAttribute('data-theme', name);
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.t===name));
+}
+
+function render(){
+  const app = document.getElementById('app');
+  if(!profile){
+    app.className = 'app survey-mode';
+    app.innerHTML = surveyHTML();
+    bindSurvey();
+  } else {
+    app.className = 'app';
+    app.innerHTML = sidebarHTML() + mainHTML();
+    bindThemeSwatches();
+  }
+}
+
+/* ---------------- SURVEY ---------------- */
+function surveyHTML(){
+  return `
+  <div class="card panel">
+    <div class="brand">Ledger<span>.</span></div>
+    <div class="progress" id="progress"></div>
+    <div class="step active" data-step="1">
+      <div class="step-eyebrow">Step 1 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">Let's set up your dashboard</h2>
+      <p class="step-sub">Two minutes now saves you typing everything in one screen at a time later.</p>
+      <div class="field"><label>What should we call you?</label><input type="text" id="s-name" placeholder="First name"></div>
+      <div class="row2">
+        <div class="field"><label>Class year</label>
+          <select id="s-year"><option>2027</option><option selected>2028</option><option>2029</option><option>2030</option></select>
+        </div>
+        <div class="field"><label>Intended major</label><input type="text" id="s-major" placeholder="e.g. Public Policy"></div>
+      </div>
+    </div>
+    <div class="step" data-step="2">
+      <div class="step-eyebrow">Step 2 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">What are you taking right now?</h2>
+      <p class="step-sub">Add your current classes.</p>
+      <div id="classesRows"></div>
+      <button class="add-btn" onclick="addRow('classesRows', false)">+ Add another class</button>
+    </div>
+    <div class="step" data-step="3">
+      <div class="step-eyebrow">Step 3 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">Any credit already banked?</h2>
+      <p class="step-sub">AP, IB, dual enrollment, or transfer credit.</p>
+      <div id="pastRows"></div>
+      <button class="add-btn" onclick="addRow('pastRows', false)">+ Add another credit</button>
+    </div>
+    <div class="step" data-step="4">
+      <div class="step-eyebrow">Step 4 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">A quick financial starting point</h2>
+      <p class="step-sub">Just enough to seed your ledger — add full detail later.</p>
+      <div class="row2">
+        <div class="field"><label>Current balance ($)</label><input type="number" id="s-balance" placeholder="0"></div>
+        <div class="field"><label>Monthly spending goal ($)</label><input type="number" id="s-goal" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="step" data-step="5">
+      <div class="step-eyebrow">Step 5 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">Clubs, jobs, and activities</h2>
+      <p class="step-sub">Optional — helps Ledger suggest things you'd actually be into.</p>
+      <div id="activityRows"></div>
+      <button class="add-btn" onclick="addRow('activityRows', true)">+ Add another</button>
+    </div>
+    <div class="step" data-step="6">
+      <div class="step-eyebrow">Step 6 of 6</div>
+      <h2 style="font-family:'Source Serif 4',serif;">Who's your academic advisor?</h2>
+      <p class="step-sub">Optional — keeps their contact info one click away on your Resources page.</p>
+      <div class="row2">
+        <div class="field"><label>Advisor name</label><input type="text" id="s-advisorName" placeholder="e.g. Dr. Patel"></div>
+        <div class="field"><label>Email or phone</label><input type="text" id="s-advisorContact" placeholder="advisor@umich.edu"></div>
+      </div>
+    </div>
+    <div class="step" data-step="7">
+      <div class="finish-icon">✓</div>
+      <h2 style="font-family:'Source Serif 4',serif;">You're set up</h2>
+      <p class="step-sub">Everything you entered has been filled into Classes &amp; Credits, Finances, Resources, and Extracurriculars.</p>
+    </div>
+    <div class="nav-row">
+      <button class="btn btn-ghost" id="backBtn" onclick="stepGo(-1)">Back</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost" id="skipBtn" onclick="stepGo(1)">Skip</button>
+        <button class="btn btn-primary" id="nextBtn" onclick="handleNext()">Continue</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function addRow(containerId, single){
+  const container = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'repeat-row' + (single ? ' single' : '');
+  row.innerHTML = single
+    ? `<input type="text" placeholder="e.g. Model UN, campus job"><button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`
+    : `<input type="text" placeholder="Course code + title"><input type="number" placeholder="Cr."><button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+function bindSurvey(){
+  addRow('classesRows', false);
+  addRow('pastRows', false);
+  addRow('activityRows', true);
+  showStep(1);
+}
+
+function progressHTML(){
+  let html = '';
+  for(let i=1;i<totalSteps;i++){
+    html += `<div class="p-tick ${i<step?'filled':(i===step?'current':'')}"></div>`;
+  }
+  return html;
+}
+
+function showStep(s){
+  step = s;
+  document.querySelectorAll('.step').forEach(el => el.classList.toggle('active', +el.dataset.step === s));
+  document.getElementById('progress').innerHTML = progressHTML();
+  document.getElementById('backBtn').style.visibility = s===1 ? 'hidden' : 'visible';
+  document.getElementById('skipBtn').style.display = (s===1 || s===totalSteps) ? 'none' : 'inline-block';
+  document.getElementById('nextBtn').textContent = s===totalSteps ? 'Go to dashboard' : 'Continue';
+}
+
+function collectRows(containerId, single){
+  const rows = document.querySelectorAll('#'+containerId+' .repeat-row');
+  const out = [];
+  rows.forEach(r => {
+    const inputs = r.querySelectorAll('input');
+    if(single){
+      if(inputs[0].value.trim()) out.push(inputs[0].value.trim());
+    } else {
+      if(inputs[0].value.trim()) out.push({ title: inputs[0].value.trim(), credits: inputs[1].value || '' });
+    }
+  });
+  return out;
+}
+
+async function stepGo(dir){
+  if(step===1 && dir===1){
+    draft.name = document.getElementById('s-name').value.trim();
+    draft.year = document.getElementById('s-year').value;
+    draft.major = document.getElementById('s-major').value.trim();
+  }
+  if(step===2 && dir===1) draft.classes = collectRows('classesRows', false);
+  if(step===3 && dir===1) draft.pastCredit = collectRows('pastRows', false);
+  if(step===4 && dir===1){
+    draft.balance = document.getElementById('s-balance').value;
+    draft.goal = document.getElementById('s-goal').value;
+  }
+  if(step===5 && dir===1) draft.activities = collectRows('activityRows', true);
+  if(step===6 && dir===1){
+    draft.advisorName = document.getElementById('s-advisorName').value.trim();
+    draft.advisorContact = document.getElementById('s-advisorContact').value.trim();
+  }
+
+  const next = Math.min(totalSteps, Math.max(1, step+dir));
+  if(next===totalSteps){
+    profile = { ...draft };
+    await saveProfile(profile);
+    showStep(next);
+    if(!saveOk){
+      const sub = document.querySelector('.step[data-step="7"] .step-sub');
+      if(sub && !document.getElementById('saveWarning')){
+        sub.insertAdjacentHTML('afterend', `<div class="disclaimer" id="saveWarning"><span>⚠️</span><span>Your info is ready to use right now, but couldn't be saved for next time — if you refresh the page, you'll need to redo this setup.</span></div>`);
+      }
+    }
+  } else {
+    showStep(next);
+  }
+}
+
+function handleNext(){
+  if(step === totalSteps){ render(); }
+  else stepGo(1);
+}
+
+/* ---------------- DASHBOARD ---------------- */
+function sidebarHTML(){
+  const items = [
+    {key:'classes', label:'Classes &amp; Credits'},
+    {key:'finances', label:'Finances'},
+    {key:'resources', label:'Resources'},
+    {key:'extracurriculars', label:'Extracurriculars'},
+    {key:'todo', label:'To-Do'},
+    {key:'advising', label:'AI Advising'},
+  ];
+  const navHTML = items.map(i => `<div class="nav-item ${currentPage===i.key?'active':''}" onclick="goPage('${i.key}')" role="button" tabindex="0">${i.label}</div>`).join('');
+  return `
+  <aside class="sidebar">
+    <div class="brand">Ledger<span>.</span></div>
+    <nav>${navHTML}</nav>
+    <div class="sidebar-foot">
+      <div class="edit-link" onclick="editProfile()">↺ Redo setup survey</div>
+      <div>
+        <div class="theme-label">Theme</div>
+        <div class="swatches">
+          <div class="swatch sw-ledger ${document.body.getAttribute('data-theme')==='ledger'?'active':''}" data-t="ledger" onclick="setTheme('ledger')" role="button" tabindex="0" aria-label="Ledger theme"></div>
+          <div class="swatch sw-night ${document.body.getAttribute('data-theme')==='night'?'active':''}" data-t="night" onclick="setTheme('night')" role="button" tabindex="0" aria-label="Night theme"></div>
+          <div class="swatch sw-aurora ${document.body.getAttribute('data-theme')==='aurora'?'active':''}" data-t="aurora" onclick="setTheme('aurora')" role="button" tabindex="0" aria-label="Aurora wallpaper theme"></div>
+          <div class="swatch sw-dusk ${document.body.getAttribute('data-theme')==='dusk'?'active':''}" data-t="dusk" onclick="setTheme('dusk')" role="button" tabindex="0" aria-label="Dusk wallpaper theme"></div>
+        </div>
+      </div>
+    </div>
+  </aside>`;
+}
+
+function goPage(key){
+  currentPage = key;
+  render();
+}
+
+function mainHTML(){
+  if(currentPage === 'classes') return classesPageHTML();
+  if(currentPage === 'advising') return advisingPageHTML();
+  if(currentPage === 'finances') return financesPageHTML();
+  if(currentPage === 'resources') return resourcesPageHTML();
+  if(currentPage === 'extracurriculars') return extracurricularsPageHTML();
+  if(currentPage === 'todo') return todoPageHTML();
+  return `<main><div class="panel empty" style="padding:40px;">Unknown page.</div></main>`;
+}
+
+function updateGPA(val){
+  profile.gpa = val;
+  saveProfile(profile);
+  render();
+}
+
+function totalCredits(){
+  const classCredits = (profile.classes||[]).reduce((s,c)=>s+(parseInt(c.credits)||0),0);
+  const pastCredits = (profile.pastCredit||[]).reduce((s,c)=>s+(parseInt(c.credits)||0),0);
+  return classCredits + pastCredits;
+}
+
+function mockAdvisingResponse(q){
+  const total = totalCredits();
+  const major = profile.major || 'your major';
+  if(/next semester/i.test(q)){
+    return `You're at ${total} logged credits. A Quantitative Reasoning course like STATS 250 and continuing your ${major} core requirements would be reasonable next steps — confirm exact prerequisites in Atlas before registering.`;
+  }
+  if(/on track/i.test(q)){
+    return `You've logged ${total} credits so far. That's not enough for a real verdict — but Language and Humanities look untouched in what you've entered, which is worth prioritizing early since Language often takes several semesters.`;
+  }
+  if(/club/i.test(q)){
+    return `Given ${major}, a pre-professional society in your field or a policy/debate-adjacent org could be a fit. This app doesn't have live club data yet, so treat this as a starting point, not a real recommendation.`;
+  }
+  return `This is a placeholder response for the prototype. Once this is wired to the real AI relay, answers here will be grounded in your actual entered data, with sources cited.`;
+}
+
+function sendChat(q){
+  if(!q || !q.trim()) return;
+  if(aiUsage.used >= aiUsage.limit){
+    chatHistory.push({role:'assistant', text:"You've hit your AI action limit for this month. Manual entry and browsing still work — usage resets next cycle."});
+    render();
+    return;
+  }
+  chatHistory.push({role:'user', text:q});
+  chatHistory.push({role:'assistant', text: mockAdvisingResponse(q)});
+  aiUsage.used++;
+  render();
+}
+
+function sendChatFromInput(){
+  const el = document.getElementById('chatInput');
+  const val = el.value;
+  el.value = '';
+  sendChat(val);
+}
+
+function runningBalance(){
+  const start = parseFloat(profile.balance) || 0;
+  const net = transactions.reduce((s,t)=> s + (t.type==='income' ? t.amount : -t.amount), 0);
+  return start + net;
+}
+
+function addTransaction(){
+  const desc = document.getElementById('txDesc').value.trim();
+  const amt = parseFloat(document.getElementById('txAmount').value);
+  const type = document.getElementById('txType').value;
+  if(!desc || isNaN(amt)) return;
+  transactions.unshift({ desc, amount: Math.abs(amt), type });
+  document.getElementById('txDesc').value = '';
+  document.getElementById('txAmount').value = '';
+  saveProfile(profile);
+  render();
+}
+
+function removeTransaction(idx){
+  transactions.splice(idx,1);
+  saveProfile(profile);
+  render();
+}
+
+function addGoal(){
+  const name = document.getElementById('goalName').value.trim();
+  const target = parseFloat(document.getElementById('goalTarget').value);
+  const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+  if(!name || isNaN(target) || target<=0) return;
+  goals.push({ name, target, current });
+  document.getElementById('goalName').value = '';
+  document.getElementById('goalTarget').value = '';
+  document.getElementById('goalCurrent').value = '';
+  saveProfile(profile);
+  render();
+}
+
+function removeGoal(idx){
+  goals.splice(idx,1);
+  saveProfile(profile);
+  render();
+}
+
+function financesPageHTML(){
+  const balance = runningBalance();
+  const monthlyGoal = parseFloat(profile.goal) || 0;
+  const spent = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const spentPct = monthlyGoal ? Math.min(100, Math.round((spent/monthlyGoal)*100)) : 0;
+
+  const txRows = transactions.length
+    ? transactions.map((t,i)=>`
+        <div class="ledger-row">
+          <div class="req-name">${t.desc}</div>
+          <div></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="req-count" style="color:${t.type==='income'?'var(--complete)':'var(--gap)'}; font-weight:600;">
+              ${t.type==='income'?'+':'−'}$${t.amount.toFixed(2)}
+            </span>
+            <button class="remove-btn" onclick="removeTransaction(${i})">✕</button>
+          </div>
+        </div>`).join('')
+    : `<div class="empty">No transactions yet — add one below.</div>`;
+
+  const goalCards = goals.length
+    ? goals.map((g,i)=>{
+        const pct = Math.min(100, Math.round((g.current/g.target)*100));
+        return `<div class="panel mini-card" style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="k" style="text-transform:none; font-size:13px; font-weight:600; color:var(--ink);">${g.name}</div>
+            <button class="remove-btn" onclick="removeGoal(${i})">✕</button>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--slate); margin:8px 0 4px;">
+            <span>$${g.current.toFixed(0)} of $${g.target.toFixed(0)}</span><span>${pct}%</span>
+          </div>
+          <div style="height:6px; background:var(--line); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:var(--complete);"></div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="empty">No goals yet — add one below, e.g. "Spring break trip."</div>`;
+
+  return `
+  <main>
+    <div class="page-head">
+      <div><h1>Finances</h1><p class="page-sub">Starting balance from your setup survey, plus anything you log here</p></div>
+      <div class="stat-pair">
+        <div class="stat"><span class="stat-num">$${balance.toFixed(2)}</span><span class="stat-label">Balance</span></div>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-head"><h2>Monthly Spending Goal</h2><p class="section-note">From your setup survey</p></div>
+      <div class="panel" style="padding:14px 18px;">
+        <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;">
+          <span>Spent this cycle</span><span class="req-count">$${spent.toFixed(2)} / $${monthlyGoal.toFixed(2)}</span>
+        </div>
+        <div style="height:6px; background:var(--line); border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${spentPct}%; background:${spentPct>=100?'var(--gap)':'var(--maize)'};"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Ledger</h2><p class="section-note">Manual entry — AI receipt/import is a metered feature, coming later</p></div>
+      <div class="panel">${txRows}</div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <input type="text" id="txDesc" placeholder="Description" style="flex:2; min-width:140px;">
+        <input type="number" id="txAmount" placeholder="Amount" style="flex:1; min-width:90px;">
+        <select id="txType" style="flex:1; min-width:110px;">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+        <button class="btn btn-primary" onclick="addTransaction()">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Savings Goals</h2></div>
+      ${goalCards}
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <input type="text" id="goalName" placeholder="Goal name" style="flex:2; min-width:140px;">
+        <input type="number" id="goalTarget" placeholder="Target $" style="flex:1; min-width:90px;">
+        <input type="number" id="goalCurrent" placeholder="Current $" style="flex:1; min-width:90px;">
+        <button class="btn btn-primary" onclick="addGoal()">Add goal</button>
+      </div>
+    </section>
+  </main>`;
+}
+
+const CAMPUS_RESOURCES = [
+  { name:"Atlas — Degree Audit & Course Planning", note:"Your official requirement tracker — always the source of truth over this app." },
+  { name:"Academic Advising / Registrar", note:"Book appointments, request overrides, official records." },
+  { name:"Counseling & Psychological Services (CAPS)", note:"Mental health support and same-day crisis appointments." },
+  { name:"Division of Public Safety & Security (DPSS)", note:"Campus safety, escort services, emergency alerts." },
+  { name:"Career Center", note:"Resume review, interview prep, employer events." },
+  { name:"Student Newsletters", note:"Org digests and campus-wide announcements." },
+];
+
+function resourcesPageHTML(){
+  const hasAdvisor = profile.advisorName || profile.advisorContact;
+  return `
+  <main>
+    <div class="page-head">
+      <div><h1>Resources</h1><p class="page-sub">Your advisor, plus quick links to campus support</p></div>
+    </div>
+
+    <section>
+      <div class="section-head"><h2>Your Advisor</h2><p class="section-note">From your setup survey</p></div>
+      ${hasAdvisor
+        ? `<div class="panel mini-card">
+            <div class="k">Advisor</div>
+            <div class="v" style="font-size:16px;">${profile.advisorName || 'Name not set'}</div>
+            <p class="page-sub" style="margin:6px 0 0;">${profile.advisorContact || 'No contact info added yet'}</p>
+          </div>`
+        : `<div class="panel empty">No advisor added yet — add one from the setup survey.</div>`}
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Campus Resources</h2><p class="section-note">Placeholder list — swap in real UMich links before this ships</p></div>
+      <div class="grid2">
+        ${CAMPUS_RESOURCES.map(r=>`
+          <div class="panel class-card">
+            <div style="font-weight:600; font-size:14px;">${r.name}</div>
+            <p class="page-sub" style="margin:6px 0 0;">${r.note}</p>
+          </div>`).join('')}
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>General Announcements</h2><p class="section-note">Example data — not live</p></div>
+      <div class="panel">
+        <div class="ledger-row"><div class="req-name">Registration opens for Winter term</div><div></div><div class="req-count">Oct 12</div></div>
+        <div class="ledger-row"><div class="req-name">Career Center fall recruiting fair</div><div></div><div class="req-count">Sep 24</div></div>
+        <div class="ledger-row"><div class="req-name">Campus-wide safety drill</div><div></div><div class="req-count">Sep 30</div></div>
+      </div>
+    </section>
+  </main>`;
+}
+
+const SUGGESTED_CLUBS = {
+  default: ["Student Government", "Intramural Sports", "Volunteer Corps"],
+};
+
+function suggestedClubsFor(major){
+  const m = (major||'').toLowerCase();
+  if(m.includes('bio') || m.includes('pre-med') || m.includes('health')) return ["Pre-Health Society", "Global Medical Brigades", "Peer Health Educators"];
+  if(m.includes('policy') || m.includes('poli')) return ["Model UN", "Roosevelt Institute Policy Group", "Debate Team"];
+  if(m.includes('econ') || m.includes('business')) return ["Finance & Investment Club", "Consulting Club", "Net Impact"];
+  return SUGGESTED_CLUBS.default;
+}
+
+function addActivity(){
+  const val = document.getElementById('newActivity').value.trim();
+  if(!val) return;
+  profile.activities = profile.activities || [];
+  profile.activities.push(val);
+  document.getElementById('newActivity').value = '';
+  saveProfile(profile);
+  render();
+}
+
+function removeActivity(idx){
+  profile.activities.splice(idx,1);
+  saveProfile(profile);
+  render();
+}
+
+function extracurricularsPageHTML(){
+  const activities = profile.activities || [];
+  const activityChips = activities.length
+    ? activities.map((a,i)=>`<span class="chip">${a} <span style="cursor:pointer; color:var(--gap);" onclick="removeActivity(${i})">✕</span></span>`).join('')
+    : `<span class="section-note">Nothing added yet.</span>`;
+  const suggested = suggestedClubsFor(profile.major);
+
+  return `
+  <main>
+    <div class="page-head">
+      <div><h1>Extracurriculars</h1><p class="page-sub">Clubs, jobs, and events — from your survey plus a few suggestions</p></div>
+    </div>
+
+    <section>
+      <div class="section-head"><h2>Your Clubs &amp; Jobs</h2></div>
+      <div class="panel" style="padding:14px 16px;">${activityChips}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="newActivity" placeholder="Add a club or job">
+        <button class="btn btn-primary" onclick="addActivity()">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Suggested For You</h2><p class="section-note">Based on your major — not live club data yet</p></div>
+      <div class="panel" style="padding:14px 16px;">
+        ${suggested.map(c=>`<span class="chip">${c}</span>`).join('')}
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Upcoming Events</h2><p class="section-note">Example data — not live</p></div>
+      <div class="panel">
+        <div class="ledger-row"><div class="req-name">Student org fair — North Quad</div><div></div><div class="req-count">Sep 5</div></div>
+        <div class="ledger-row"><div class="req-name">Career Center resume workshop</div><div></div><div class="req-count">Sep 18</div></div>
+        <div class="ledger-row"><div class="req-name">Homecoming tailgate</div><div></div><div class="req-count">Oct 3</div></div>
+      </div>
+    </section>
+  </main>`;
+}
+
+function suggestedTodos(){
+  const items = [];
+  if(profile.advisorName) items.push(`Email ${profile.advisorName} about next semester's schedule`);
+  else items.push(`Add your advisor on the Resources page, then book a check-in`);
+  if((profile.pastCredit||[]).length===0) items.push(`Confirm any AP/IB/transfer credit is logged with the registrar`);
+  items.push(`Look into your Language requirement — it takes several semesters`);
+  return items.slice(0,3);
+}
+
+function addTodo(text){
+  if(!text || !text.trim()) return;
+  profile.todos = profile.todos || [];
+  profile.todos.push({ text: text.trim(), done: false });
+  saveProfile(profile);
+  render();
+}
+
+function addTodoFromInput(){
+  const el = document.getElementById('newTodo');
+  addTodo(el.value);
+  el.value = '';
+}
+
+function toggleTodo(idx){
+  profile.todos[idx].done = !profile.todos[idx].done;
+  saveProfile(profile);
+  render();
+}
+
+function removeTodo(idx){
+  profile.todos.splice(idx,1);
+  saveProfile(profile);
+  render();
+}
+
+function todoPageHTML(){
+  const todos = profile.todos || [];
+  const list = todos.length
+    ? todos.map((t,i)=>`
+        <div class="todo-item">
+          <span class="todo-check ${t.done?'checked':''}" onclick="toggleTodo(${i})" role="button" tabindex="0" aria-label="Toggle done">${t.done?'✓':''}</span>
+          <span style="flex:1; ${t.done?'text-decoration:line-through; color:var(--slate);':''}">${t.text}</span>
+          <button class="remove-btn" onclick="removeTodo(${i})">✕</button>
+        </div>`).join('')
+    : `<div class="empty">Nothing on your list yet — add something below.</div>`;
+
+  const suggestions = suggestedTodos();
+
+  return `
+  <main>
+    <div class="page-head">
+      <div><h1>To-Do</h1><p class="page-sub">Just a simple checklist — nothing fancy</p></div>
+    </div>
+
+    <section>
+      <div class="section-head"><h2>Your List</h2></div>
+      <div class="todo-preview">${list}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="newTodo" placeholder="Add a to-do">
+        <button class="btn btn-primary" onclick="addTodoFromInput()">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Suggested</h2><p class="section-note">Based on what's missing elsewhere in your dashboard</p></div>
+      <div class="todo-preview">
+        ${suggestions.map(s=>`
+          <div class="todo-item">
+            <span style="flex:1;">${s}</span>
+            <button class="btn" style="padding:5px 12px; font-size:12px;" onclick='addTodo(${JSON.stringify(s)})'>+ Add</button>
+          </div>`).join('')}
+      </div>
+    </section>
+  </main>`;
+}
+
+function advisingPageHTML(){
+  const pct = Math.min(100, Math.round((aiUsage.used/aiUsage.limit)*100));
+  const chatBlock = chatHistory.length
+    ? chatHistory.map(m => `<div style="display:flex; ${m.role==='user'?'justify-content:flex-end;':''}"><div style="max-width:75%; padding:9px 13px; border-radius:12px; font-size:13.5px; line-height:1.5; ${m.role==='user' ? 'background:var(--ink); color:var(--paper-raised);' : 'background:var(--paper); border:1px solid var(--line);'}">${m.text}</div></div>`).join('')
+    : `<div class="empty">Ask something below — try one of the quick prompts.</div>`;
+
+  return `
+  <main>
+    <div class="page-head">
+      <div><h1>AI Advising</h1><p class="page-sub">Grounded in what you've entered · always double-check with a real advisor</p></div>
+    </div>
+
+    <section>
+      <div class="panel" style="padding:14px 18px;">
+        <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;">
+          <span>AI actions used this month</span><span class="req-count">${aiUsage.used}/${aiUsage.limit}</span>
+        </div>
+        <div style="height:6px; background:var(--line); border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:var(--maize);"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="disclaimer"><span>⚠️</span><span><b>Not official advising.</b> Responses aren't verified against your real degree audit. Confirm anything important with Atlas or your advisor before acting on it.</span></div>
+
+    <section>
+      <div class="panel" style="padding:16px 18px; display:flex; flex-direction:column; gap:12px; max-height:320px; overflow-y:auto;">${chatBlock}</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin:10px 0;">
+        ${QUICK_QUESTIONS.map(q=>`<span class="chip" style="cursor:pointer;" onclick='sendChat(${JSON.stringify(q)})'>${q}</span>`).join('')}
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="chatInput" placeholder="Ask about classes, requirements, or pathways...">
+        <button class="btn btn-primary" onclick="sendChatFromInput()">Ask</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Suggested Pathways</h2><p class="section-note">Cites its sources</p></div>
+      <div class="panel" style="padding:16px 18px; margin-bottom:10px;">
+        <div style="font-weight:600; font-size:14.5px;">Fill your Language requirement early</div>
+        <p class="page-sub" style="margin:8px 0;">You haven't logged a language course yet, and it typically takes 3–4 semesters — starting now keeps senior year lighter.</p>
+        <span class="chip">LSA Bulletin — Language Requirement</span><span class="chip">Atlas listings</span>
+      </div>
+      <div class="panel" style="padding:16px 18px;">
+        <div style="font-weight:600; font-size:14.5px;">STATS 250 pairs well with your interests</div>
+        <p class="page-sub" style="margin:8px 0;">Fulfills Quantitative Reasoning and is a prereq for several upper-level courses.</p>
+        <span class="chip">LSA Bulletin — QR Requirement</span>
+      </div>
+    </section>
+  </main>`;
+}
+
+function bindThemeSwatches(){
+  document.querySelectorAll('.swatch').forEach(s=>{
+    s.addEventListener('keypress', e=>{ if(e.key==='Enter') setTheme(s.dataset.t); });
+  });
+}
+
+function editProfile(){
+  profile = null;
+  render();
+}
+
+const REQUIREMENTS = [
+  { name:"First-Year Writing", need:4 },
+  { name:"Race &amp; Ethnicity", need:3 },
+  { name:"Quantitative Reasoning", need:4 },
+  { name:"Natural Science", need:7 },
+  { name:"Social Science", need:6 },
+  { name:"Humanities", need:6 },
+  { name:"Language Requirement", need:16 },
+  { name:"Major Core", need:32, major:true },
+  { name:"Free Electives", need:12 },
+];
+
+function ledgerHTML(totalCreditsSoFar){
+  // Approximate distribution until AI categorization exists — flagged honestly in the UI
+  let remaining = totalCreditsSoFar;
+  return REQUIREMENTS.map(r=>{
+    const have = Math.max(0, Math.min(r.need, remaining));
+    remaining = Math.max(0, remaining - have);
+    const capped = Math.min(r.need, 16);
+    const filled = Math.round((have/r.need)*capped);
+    let ticks = '';
+    for(let i=0;i<capped;i++) ticks += `<div class="tick ${i<filled?'filled':''}"></div>`;
+    return `<div class="ledger-row">
+      <div><span class="req-name">${r.name}</span>${r.major?'<span class="req-major">Major requirement</span>':''}</div>
+      <div class="tally">${ticks}</div>
+      <div class="req-count">${have}/${r.need} cr</div>
+    </div>`;
+  }).join('');
+}
+
+function classesPageHTML(){
+  const classCredits = (profile.classes||[]).reduce((s,c)=>s+(parseInt(c.credits)||0),0);
+  const pastCredits = (profile.pastCredit||[]).reduce((s,c)=>s+(parseInt(c.credits)||0),0);
+  const total = classCredits + pastCredits;
+
+  const classesBlock = (profile.classes||[]).length
+    ? `<div class="grid2">${profile.classes.map(c=>`
+        <div class="panel class-card">
+          <div class="class-top"><span class="class-code">${c.title}</span><span class="class-credits">${c.credits||'—'} cr</span></div>
+        </div>`).join('')}</div>`
+    : `<div class="panel empty">No current classes added yet.</div>`;
+
+  const pastBlock = (profile.pastCredit||[]).length
+    ? `<div class="panel">${profile.pastCredit.map(c=>`
+        <div class="ledger-row"><div class="req-name">${c.title}</div><div></div><div class="req-count">${c.credits||'—'} cr</div></div>`).join('')}</div>`
+    : `<div class="panel empty">No past or transfer credit added yet.</div>`;
+
+  const activitiesBlock = (profile.activities||[]).length
+    ? profile.activities.map(a=>`<span class="chip">${a}</span>`).join('')
+    : `<span class="section-note">No activities added yet.</span>`;
+
+  return `
+  <main>
+    <div class="page-head">
+      <div>
+        <h1>${profile.name ? profile.name+"'s" : 'Your'} Dashboard</h1>
+        <p class="page-sub">${profile.major || 'Major not set'} · Class of ${profile.year} · from your setup survey</p>
+      </div>
+      <div class="stat-pair">
+        <div class="stat">
+          <input type="number" id="gpaInput" class="stat-num gpa-input" step="0.01" min="0" max="4.3" value="${profile.gpa || ''}" placeholder="—" onchange="updateGPA(this.value)">
+          <span class="stat-label">GPA</span>
+        </div>
+        <div class="stat"><span class="stat-num">${total}</span><span class="stat-label">Credits logged</span></div>
+      </div>
+    </div>
+
+    <section>
+      <div class="section-head"><h2>Requirement Ledger</h2><p class="section-note">Approximate until AI categorization is added</p></div>
+      <div class="disclaimer"><span>⚠️</span><span><b>Not official advising.</b> Category placement here is approximate, not a real degree audit. Confirm with Atlas or your advisor.</span></div>
+      <div class="panel">${ledgerHTML(total)}</div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Current Classes</h2></div>
+      ${classesBlock}
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Past &amp; Transfer Credit</h2></div>
+      ${pastBlock}
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Financial Snapshot</h2><p class="section-note">From your setup survey</p></div>
+      <div class="grid2">
+        <div class="panel mini-card"><div class="k">Current balance</div><div class="v">$${profile.balance || '0'}</div></div>
+        <div class="panel mini-card"><div class="k">Monthly goal</div><div class="v">$${profile.goal || '0'}</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Extracurriculars</h2></div>
+      <div class="panel" style="padding:14px 16px;">${activitiesBlock}</div>
+    </section>
+  </main>`;
+}
+
+loadProfile();
+</script>
+</body>
+</html>
